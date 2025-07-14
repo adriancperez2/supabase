@@ -9,8 +9,20 @@
   "servers": [],
   "tags": [
     {
+      "name": "Advisors",
+      "description": "Advisors related endpoints"
+    },
+    {
+      "name": "Analytics",
+      "description": "Analytics related endpoints"
+    },
+    {
       "name": "Auth",
       "description": "Auth related endpoints"
+    },
+    {
+      "name": "Billing",
+      "description": "Billing related endpoints"
     },
     {
       "name": "Database",
@@ -200,6 +212,9 @@
                       "FUNCTIONS_DEPLOYED",
                       "FUNCTIONS_FAILED"
                     ]
+                  },
+                  "request_review": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -215,7 +230,8 @@
                   "type": "object",
                   "properties": {
                     "id": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "uuid"
                     },
                     "name": {
                       "type": "string"
@@ -256,10 +272,16 @@
                       ]
                     },
                     "created_at": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "updated_at": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "review_requested_at": {
+                      "type": "string",
+                      "format": "date-time"
                     }
                   },
                   "required": [
@@ -743,6 +765,7 @@
                     "type": "string",
                     "enum": [
                       "pico",
+                      "nano",
                       "micro",
                       "small",
                       "medium",
@@ -1141,6 +1164,98 @@
         ]
       }
     },
+    "/v1/oauth/authorize/project-claim": {
+      "get": {
+        "operationId": "v1-oauth-authorize-project-claim",
+        "x-internal": true,
+        "summary": "Authorize user through oauth and claim a project",
+        "description": "Initiates the OAuth authorization flow for the specified provider. After successful authentication, the user can claim ownership of the specified project.",
+        "parameters": [
+          {
+            "name": "project_ref",
+            "required": true,
+            "in": "query",
+            "description": "Project ref",
+            "schema": {
+              "minLength": 20,
+              "maxLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "client_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "response_type",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "enum": ["code", "token", "id_token token"],
+              "type": "string"
+            }
+          },
+          {
+            "name": "redirect_uri",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "response_mode",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code_challenge",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code_challenge_method",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": ["plain", "sha256", "S256"],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": ["OAuth"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/snippets": {
       "get": {
         "operationId": "v1-list-all-snippets",
@@ -1470,7 +1585,8 @@
                     "type": "object",
                     "properties": {
                       "api_key": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                       },
                       "id": {
                         "type": "string",
@@ -1518,7 +1634,7 @@
                         "nullable": true
                       }
                     },
-                    "required": ["api_key", "name"]
+                    "required": ["name"]
                   }
                 }
               }
@@ -1536,8 +1652,8 @@
         ]
       },
       "post": {
-        "operationId": "createApiKey",
-        "summary": "[Alpha] Creates a new API key for the project",
+        "operationId": "v1-create-project-api-key",
+        "summary": "Creates a new API key for the project",
         "parameters": [
           {
             "name": "ref",
@@ -1608,7 +1724,8 @@
                   "type": "object",
                   "properties": {
                     "api_key": {
-                      "type": "string"
+                      "type": "string",
+                      "nullable": true
                     },
                     "id": {
                       "type": "string",
@@ -1656,7 +1773,108 @@
                       "nullable": true
                     }
                   },
-                  "required": ["api_key", "name"]
+                  "required": ["name"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": ""
+          }
+        },
+        "tags": ["Secrets"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/projects/{ref}/api-keys/legacy": {
+      "get": {
+        "operationId": "v1-get-project-legacy-api-keys",
+        "summary": "Check whether JWT based legacy (anon, service_role) API keys are enabled. This API endpoint will be removed in the future, check for HTTP 404 Not Found.",
+        "parameters": [
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "description": "Project ref",
+            "schema": {
+              "minLength": 20,
+              "maxLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["enabled"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": ""
+          }
+        },
+        "tags": ["Secrets"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "v1-update-project-legacy-api-keys",
+        "summary": "Disable or re-enable JWT based legacy (anon, service_role) API keys. This API endpoint will be removed in the future, check for HTTP 404 Not Found.",
+        "parameters": [
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "description": "Project ref",
+            "schema": {
+              "minLength": 20,
+              "maxLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "enabled",
+            "required": true,
+            "in": "query",
+            "description": "Boolean string, true or false",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["enabled"]
                 }
               }
             }
@@ -1675,8 +1893,8 @@
     },
     "/v1/projects/{ref}/api-keys/{id}": {
       "patch": {
-        "operationId": "updateApiKey",
-        "summary": "[Alpha] Updates an API key for the project",
+        "operationId": "v1-update-project-api-key",
+        "summary": "Updates an API key for the project",
         "parameters": [
           {
             "name": "ref",
@@ -1751,7 +1969,8 @@
                   "type": "object",
                   "properties": {
                     "api_key": {
-                      "type": "string"
+                      "type": "string",
+                      "nullable": true
                     },
                     "id": {
                       "type": "string",
@@ -1799,7 +2018,7 @@
                       "nullable": true
                     }
                   },
-                  "required": ["api_key", "name"]
+                  "required": ["name"]
                 }
               }
             }
@@ -1816,8 +2035,8 @@
         ]
       },
       "get": {
-        "operationId": "getApiKey",
-        "summary": "[Alpha] Get API key",
+        "operationId": "v1-get-project-api-key",
+        "summary": "Get API key",
         "parameters": [
           {
             "name": "ref",
@@ -1859,7 +2078,8 @@
                   "type": "object",
                   "properties": {
                     "api_key": {
-                      "type": "string"
+                      "type": "string",
+                      "nullable": true
                     },
                     "id": {
                       "type": "string",
@@ -1907,7 +2127,7 @@
                       "nullable": true
                     }
                   },
-                  "required": ["api_key", "name"]
+                  "required": ["name"]
                 }
               }
             }
@@ -1924,8 +2144,8 @@
         ]
       },
       "delete": {
-        "operationId": "deleteApiKey",
-        "summary": "[Alpha] Deletes an API key for the project",
+        "operationId": "v1-delete-project-api-key",
+        "summary": "Deletes an API key for the project",
         "parameters": [
           {
             "name": "ref",
@@ -1956,6 +2176,23 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "was_compromised",
+            "required": false,
+            "in": "query",
+            "description": "Boolean string, true or false",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "reason",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1967,7 +2204,8 @@
                   "type": "object",
                   "properties": {
                     "api_key": {
-                      "type": "string"
+                      "type": "string",
+                      "nullable": true
                     },
                     "id": {
                       "type": "string",
@@ -2015,7 +2253,7 @@
                       "nullable": true
                     }
                   },
-                  "required": ["api_key", "name"]
+                  "required": ["name"]
                 }
               }
             }
@@ -2062,7 +2300,8 @@
                     "type": "object",
                     "properties": {
                       "id": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "uuid"
                       },
                       "name": {
                         "type": "string"
@@ -2103,10 +2342,16 @@
                         ]
                       },
                       "created_at": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "date-time"
                       },
                       "updated_at": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "review_requested_at": {
+                        "type": "string",
+                        "format": "date-time"
                       }
                     },
                     "required": [
@@ -2171,6 +2416,9 @@
                   "git_branch": {
                     "type": "string"
                   },
+                  "is_default": {
+                    "type": "boolean"
+                  },
                   "persistent": {
                     "type": "boolean"
                   },
@@ -2233,7 +2481,8 @@
                   "type": "object",
                   "properties": {
                     "id": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "uuid"
                     },
                     "name": {
                       "type": "string"
@@ -2274,10 +2523,16 @@
                       ]
                     },
                     "created_at": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "date-time"
                     },
                     "updated_at": {
-                      "type": "string"
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "review_requested_at": {
+                      "type": "string",
+                      "format": "date-time"
                     }
                   },
                   "required": [
@@ -2336,6 +2591,126 @@
           },
           "500": {
             "description": "Failed to disable preview branching"
+          }
+        },
+        "tags": ["Environments"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/projects/{ref}/branches/{name}": {
+      "get": {
+        "operationId": "v1-get-a-branch",
+        "summary": "Get a database branch",
+        "description": "Fetches the specified database branch by its name.",
+        "parameters": [
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "description": "Project ref",
+            "schema": {
+              "minLength": 20,
+              "maxLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "project_ref": {
+                      "type": "string"
+                    },
+                    "parent_project_ref": {
+                      "type": "string"
+                    },
+                    "is_default": {
+                      "type": "boolean"
+                    },
+                    "git_branch": {
+                      "type": "string"
+                    },
+                    "pr_number": {
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "latest_check_run_id": {
+                      "type": "number",
+                      "description": "This field is deprecated and will not be populated.",
+                      "deprecated": true
+                    },
+                    "persistent": {
+                      "type": "boolean"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "CREATING_PROJECT",
+                        "RUNNING_MIGRATIONS",
+                        "MIGRATIONS_PASSED",
+                        "MIGRATIONS_FAILED",
+                        "FUNCTIONS_DEPLOYED",
+                        "FUNCTIONS_FAILED"
+                      ]
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "review_requested_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "project_ref",
+                    "parent_project_ref",
+                    "is_default",
+                    "persistent",
+                    "status",
+                    "created_at",
+                    "updated_at"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": ""
+          },
+          "500": {
+            "description": "Failed to fetch database branch"
           }
         },
         "tags": ["Environments"],
@@ -4587,12 +4962,6 @@
                         "required": ["postgres_version", "release_channel", "app_version"]
                       }
                     },
-                    "potential_breaking_changes": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
                     "duration_estimate_hours": {
                       "type": "number"
                     },
@@ -4602,7 +4971,19 @@
                         "type": "string"
                       }
                     },
-                    "extension_dependent_objects": {
+                    "objects_to_be_dropped": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "unsupported_extensions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "user_defined_objects_in_internal_schemas": {
                       "type": "array",
                       "items": {
                         "type": "string"
@@ -4615,10 +4996,11 @@
                     "current_app_version_release_channel",
                     "latest_app_version",
                     "target_upgrade_versions",
-                    "potential_breaking_changes",
                     "duration_estimate_hours",
                     "legacy_auth_custom_roles",
-                    "extension_dependent_objects"
+                    "objects_to_be_dropped",
+                    "unsupported_extensions",
+                    "user_defined_objects_in_internal_schemas"
                   ]
                 }
               }
@@ -5085,10 +5467,144 @@
         ]
       }
     },
+    "/v1/projects/{ref}/config/auth/signing-keys/legacy": {
+      "post": {
+        "operationId": "v1-create-legacy-signing-key",
+        "summary": "Set up the project's existing JWT secret as an in_use JWT signing key. This endpoint will be removed in the future always check for HTTP 404 Not Found.",
+        "parameters": [
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "description": "Project ref",
+            "schema": {
+              "minLength": 20,
+              "maxLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": ["EdDSA", "ES256", "RS256", "HS256"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["in_use", "previously_used", "revoked", "standby"]
+                    },
+                    "public_jwk": {
+                      "nullable": true
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": ["id", "algorithm", "status", "created_at", "updated_at"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": ""
+          }
+        },
+        "tags": ["Auth"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "v1-get-legacy-signing-key",
+        "summary": "Get the signing key information for the JWT secret imported as signing key for this project. This endpoint will be removed in the future, check for HTTP 404 Not Found.",
+        "parameters": [
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "description": "Project ref",
+            "schema": {
+              "minLength": 20,
+              "maxLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "enum": ["EdDSA", "ES256", "RS256", "HS256"]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["in_use", "previously_used", "revoked", "standby"]
+                    },
+                    "public_jwk": {
+                      "nullable": true
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": ["id", "algorithm", "status", "created_at", "updated_at"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": ""
+          }
+        },
+        "tags": ["Auth"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/projects/{ref}/config/auth/signing-keys": {
       "post": {
-        "operationId": "createSigningKeyForProject",
-        "summary": "[Alpha] Create a new signing key for the project in standby status",
+        "operationId": "v1-create-project-signing-key",
+        "summary": "Create a new signing key for the project in standby status",
         "parameters": [
           {
             "name": "ref",
@@ -5117,6 +5633,109 @@
                   "status": {
                     "type": "string",
                     "enum": ["in_use", "standby"]
+                  },
+                  "private_jwk": {
+                    "discriminator": {
+                      "propertyName": "kty"
+                    },
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kty": {
+                            "type": "string",
+                            "enum": ["RSA"]
+                          },
+                          "n": {
+                            "type": "string"
+                          },
+                          "e": {
+                            "type": "string",
+                            "enum": ["AQAB"]
+                          },
+                          "d": {
+                            "type": "string"
+                          },
+                          "p": {
+                            "type": "string"
+                          },
+                          "q": {
+                            "type": "string"
+                          },
+                          "dp": {
+                            "type": "string"
+                          },
+                          "dq": {
+                            "type": "string"
+                          },
+                          "qi": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kty", "n", "e", "d", "p", "q", "dp", "dq", "qi"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kty": {
+                            "type": "string",
+                            "enum": ["EC"]
+                          },
+                          "crv": {
+                            "type": "string",
+                            "enum": ["P-256"]
+                          },
+                          "x": {
+                            "type": "string"
+                          },
+                          "y": {
+                            "type": "string"
+                          },
+                          "d": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kty", "crv", "x", "y", "d"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kty": {
+                            "type": "string",
+                            "enum": ["OKP"]
+                          },
+                          "crv": {
+                            "type": "string",
+                            "enum": ["Ed25519"]
+                          },
+                          "x": {
+                            "type": "string"
+                          },
+                          "d": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["kty", "crv", "x", "d"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kty": {
+                            "type": "string",
+                            "enum": ["oct"]
+                          },
+                          "k": {
+                            "type": "string",
+                            "minLength": 16
+                          }
+                        },
+                        "required": ["kty", "k"],
+                        "additionalProperties": false
+                      }
+                    ]
                   }
                 },
                 "required": ["algorithm"],
@@ -5175,8 +5794,8 @@
         ]
       },
       "get": {
-        "operationId": "listSigningKeysForProject",
-        "summary": "[Alpha] List all signing keys for the project",
+        "operationId": "v1-get-project-signing-keys",
+        "summary": "List all signing keys for the project",
         "parameters": [
           {
             "name": "ref",
@@ -5253,8 +5872,8 @@
     },
     "/v1/projects/{ref}/config/auth/signing-keys/{id}": {
       "get": {
-        "operationId": "getSigningKeyForProject",
-        "summary": "[Alpha] Get information about a signing key",
+        "operationId": "v1-get-project-signing-key",
+        "summary": "Get information about a signing key",
         "parameters": [
           {
             "name": "id",
@@ -5328,8 +5947,8 @@
         ]
       },
       "delete": {
-        "operationId": "deleteSigningKey",
-        "summary": "[Alpha] Remove a signing key from a project, where the status is previously_used",
+        "operationId": "v1-remove-project-signing-key",
+        "summary": "Remove a signing key from a project. Only possible if the key has been in revoked status for a while.",
         "parameters": [
           {
             "name": "id",
@@ -5403,8 +6022,8 @@
         ]
       },
       "patch": {
-        "operationId": "patchSigningKey",
-        "summary": "[Alpha] Update a signing key, mainly its status",
+        "operationId": "v1-update-project-signing-key",
+        "summary": "Update a signing key, mainly its status",
         "parameters": [
           {
             "name": "id",
@@ -5546,6 +6165,15 @@
                             }
                           },
                           "required": ["enabled"]
+                        },
+                        "icebergCatalog": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": ["enabled"]
                         }
                       },
                       "required": ["imageTransformation", "s3Protocol"]
@@ -5613,6 +6241,15 @@
                         "required": ["enabled"]
                       },
                       "s3Protocol": {
+                        "type": "object",
+                        "properties": {
+                          "enabled": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": ["enabled"]
+                      },
+                      "icebergCatalog": {
                         "type": "object",
                         "properties": {
                           "enabled": {
@@ -6614,6 +7251,18 @@
                       "type": "string",
                       "nullable": true
                     },
+                    "hook_before_user_created_enabled": {
+                      "type": "boolean",
+                      "nullable": true
+                    },
+                    "hook_before_user_created_uri": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "hook_before_user_created_secrets": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "jwt_exp": {
                       "type": "integer",
                       "nullable": true
@@ -6922,6 +7571,7 @@
                     },
                     "smtp_admin_email": {
                       "type": "string",
+                      "format": "email",
                       "nullable": true
                     },
                     "smtp_host": {
@@ -7043,6 +7693,9 @@
                     "hook_send_email_enabled",
                     "hook_send_email_uri",
                     "hook_send_email_secrets",
+                    "hook_before_user_created_enabled",
+                    "hook_before_user_created_uri",
+                    "hook_before_user_created_secrets",
                     "jwt_exp",
                     "mailer_allow_unverified_email_sign_ins",
                     "mailer_autoconfirm",
@@ -7186,6 +7839,7 @@
                   },
                   "smtp_admin_email": {
                     "type": "string",
+                    "format": "email",
                     "nullable": true
                   },
                   "smtp_host": {
@@ -7581,6 +8235,18 @@
                     "nullable": true
                   },
                   "hook_send_email_secrets": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "hook_before_user_created_enabled": {
+                    "type": "boolean",
+                    "nullable": true
+                  },
+                  "hook_before_user_created_uri": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "hook_before_user_created_secrets": {
                     "type": "string",
                     "nullable": true
                   },
@@ -8273,6 +8939,18 @@
                       "type": "string",
                       "nullable": true
                     },
+                    "hook_before_user_created_enabled": {
+                      "type": "boolean",
+                      "nullable": true
+                    },
+                    "hook_before_user_created_uri": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "hook_before_user_created_secrets": {
+                      "type": "string",
+                      "nullable": true
+                    },
                     "jwt_exp": {
                       "type": "integer",
                       "nullable": true
@@ -8581,6 +9259,7 @@
                     },
                     "smtp_admin_email": {
                       "type": "string",
+                      "format": "email",
                       "nullable": true
                     },
                     "smtp_host": {
@@ -8702,6 +9381,9 @@
                     "hook_send_email_enabled",
                     "hook_send_email_uri",
                     "hook_send_email_secrets",
+                    "hook_before_user_created_enabled",
+                    "hook_before_user_created_uri",
+                    "hook_before_user_created_secrets",
                     "jwt_exp",
                     "mailer_allow_unverified_email_sign_ins",
                     "mailer_autoconfirm",
@@ -8807,7 +9489,7 @@
     },
     "/v1/projects/{ref}/config/auth/third-party-auth": {
       "post": {
-        "operationId": "createTPAForProject",
+        "operationId": "v1-create-project-tpa-integration",
         "summary": "Creates a new third-party auth integration",
         "parameters": [
           {
@@ -8899,7 +9581,7 @@
         ]
       },
       "get": {
-        "operationId": "listTPAForProject",
+        "operationId": "v1-list-project-tpa-integrations",
         "summary": "Lists all third-party auth integrations",
         "parameters": [
           {
@@ -8977,7 +9659,7 @@
     },
     "/v1/projects/{ref}/config/auth/third-party-auth/{tpa_id}": {
       "delete": {
-        "operationId": "deleteTPAForProject",
+        "operationId": "v1-delete-project-tpa-integration",
         "summary": "Removes a third-party auth integration",
         "parameters": [
           {
@@ -9059,7 +9741,7 @@
         ]
       },
       "get": {
-        "operationId": "getTPAForProject",
+        "operationId": "v1-get-project-tpa-integration",
         "summary": "Get a third-party integration",
         "parameters": [
           {
@@ -9558,6 +10240,7 @@
             "description": "Failed to list project addons"
           }
         },
+        "tags": ["Billing"],
         "security": [
           {
             "bearer": []
@@ -9656,6 +10339,7 @@
             "description": "Failed to apply project addon"
           }
         },
+        "tags": ["Billing"],
         "security": [
           {
             "bearer": []
@@ -9735,6 +10419,7 @@
             "description": "Failed to remove project addon"
           }
         },
+        "tags": ["Billing"],
         "security": [
           {
             "bearer": []
@@ -9745,6 +10430,7 @@
     "/v1/projects/{ref}/claim-token": {
       "get": {
         "operationId": "v1-get-project-claim-token",
+        "x-internal": true,
         "summary": "Gets project claim token",
         "parameters": [
           {
@@ -9800,6 +10486,7 @@
       },
       "post": {
         "operationId": "v1-create-project-claim-token",
+        "x-internal": true,
         "summary": "Creates project claim token",
         "parameters": [
           {
@@ -9858,6 +10545,7 @@
       },
       "delete": {
         "operationId": "v1-delete-project-claim-token",
+        "x-internal": true,
         "summary": "Revokes project claim token",
         "parameters": [
           {
@@ -9891,7 +10579,7 @@
     },
     "/v1/projects/{ref}/advisors/performance": {
       "get": {
-        "operationId": "getPerformanceAdvisors",
+        "operationId": "v1-get-performance-advisors",
         "summary": "Gets project performance advisors.",
         "description": "This is an **experimental** endpoint. It is subject to change or removal in future versions. Use it with caution, as it may not remain supported or stable.",
         "deprecated": true,
@@ -10043,7 +10731,7 @@
             "description": ""
           }
         },
-        "tags": ["Projects Advisors"],
+        "tags": ["Advisors"],
         "security": [
           {
             "bearer": []
@@ -10053,7 +10741,7 @@
     },
     "/v1/projects/{ref}/advisors/security": {
       "get": {
-        "operationId": "getSecurityAdvisors",
+        "operationId": "v1-get-security-advisors",
         "summary": "Gets project security advisors.",
         "description": "This is an **experimental** endpoint. It is subject to change or removal in future versions. Use it with caution, as it may not remain supported or stable.",
         "deprecated": true,
@@ -10067,6 +10755,15 @@
               "minLength": 20,
               "maxLength": 20,
               "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "lint_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": ["sql"],
               "type": "string"
             }
           }
@@ -10205,7 +10902,7 @@
             "description": ""
           }
         },
-        "tags": ["Projects Advisors"],
+        "tags": ["Advisors"],
         "security": [
           {
             "bearer": []
@@ -10215,7 +10912,7 @@
     },
     "/v1/projects/{ref}/analytics/endpoints/logs.all": {
       "get": {
-        "operationId": "getLogs",
+        "operationId": "v1-get-project-logs",
         "summary": "Gets project's logs",
         "description": "Executes a SQL query on the project's logs.\n\nEither the 'iso_timestamp_start' and 'iso_timestamp_end' parameters must be provided.\nIf both are not provided, only the last 1 minute of logs will be queried.\nThe timestamp range must be no more than 24 hours and is rounded to the nearest minute. If the range is more than 24 hours, a validation error will be thrown.\n",
         "parameters": [
@@ -10341,7 +11038,7 @@
     },
     "/v1/projects/{ref}/analytics/endpoints/usage.api-counts": {
       "get": {
-        "operationId": "getApiCounts",
+        "operationId": "v1-get-project-usage-api-count",
         "summary": "Gets project's usage api counts",
         "parameters": [
           {
@@ -10442,7 +11139,7 @@
             "description": "Failed to get project's usage api counts"
           }
         },
-        "tags": ["Projects Analytics"],
+        "tags": ["Analytics"],
         "security": [
           {
             "bearer": []
@@ -10452,7 +11149,7 @@
     },
     "/v1/projects/{ref}/analytics/endpoints/usage.api-requests-count": {
       "get": {
-        "operationId": "getApiRequestsCount",
+        "operationId": "v1-get-project-usage-request-count",
         "summary": "Gets project's usage api requests count",
         "parameters": [
           {
@@ -10541,7 +11238,7 @@
             "description": "Failed to get project's usage api requests count"
           }
         },
-        "tags": ["Projects Analytics"],
+        "tags": ["Analytics"],
         "security": [
           {
             "bearer": []
@@ -10670,6 +11367,71 @@
             "bearer": []
           }
         ]
+      },
+      "put": {
+        "operationId": "v1-upsert-a-migration",
+        "summary": "[Beta] Upsert a database migration without applying",
+        "description": "Only available to selected partner OAuth apps",
+        "parameters": [
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "description": "Project ref",
+            "schema": {
+              "minLength": 20,
+              "maxLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "required": false,
+            "in": "header",
+            "description": "A unique key to ensure the same migration is tracked only once.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": ["query"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "403": {
+            "description": ""
+          },
+          "500": {
+            "description": "Failed to upsert database migration"
+          }
+        },
+        "tags": ["Database"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/v1/projects/{ref}/database/query": {
@@ -10768,7 +11530,7 @@
     },
     "/v1/projects/{ref}/database/context": {
       "get": {
-        "operationId": "getDatabaseMetadata",
+        "operationId": "v1-get-database-metadata",
         "summary": "Gets database metadata for the given project.",
         "description": "This is an **experimental** endpoint. It is subject to change or removal in future versions. Use it with caution, as it may not remain supported or stable.",
         "deprecated": true,
@@ -10902,6 +11664,9 @@
                       },
                       "import_map_path": {
                         "type": "string"
+                      },
+                      "ezbr_sha256": {
+                        "type": "string"
                       }
                     },
                     "required": [
@@ -11032,6 +11797,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "ezbr_sha256",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -11076,6 +11849,9 @@
                       "type": "string"
                     },
                     "import_map_path": {
+                      "type": "string"
+                    },
+                    "ezbr_sha256": {
                       "type": "string"
                     }
                   },
@@ -11165,6 +11941,9 @@
                     },
                     "import_map_path": {
                       "type": "string"
+                    },
+                    "ezbr_sha256": {
+                      "type": "string"
                     }
                   },
                   "required": ["id", "slug", "name", "status", "version"]
@@ -11220,6 +11999,9 @@
                             "type": "string"
                           },
                           "import_map_path": {
+                            "type": "string"
+                          },
+                          "ezbr_sha256": {
                             "type": "string"
                           }
                         },
@@ -11379,6 +12161,9 @@
                     },
                     "import_map_path": {
                       "type": "string"
+                    },
+                    "ezbr_sha256": {
+                      "type": "string"
                     }
                   },
                   "required": ["id", "slug", "name", "status", "version"]
@@ -11472,6 +12257,9 @@
                       "type": "string"
                     },
                     "import_map_path": {
+                      "type": "string"
+                    },
+                    "ezbr_sha256": {
                       "type": "string"
                     }
                   },
@@ -11606,6 +12394,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "ezbr_sha256",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -11650,6 +12446,9 @@
                       "type": "string"
                     },
                     "import_map_path": {
+                      "type": "string"
+                    },
+                    "ezbr_sha256": {
                       "type": "string"
                     }
                   },
@@ -12862,6 +13661,186 @@
         ]
       }
     },
+    "/v1/projects/{ref}/database/backups/restore-point": {
+      "post": {
+        "operationId": "v1-create-restore-point",
+        "x-internal": true,
+        "summary": "Initiates a creation of a restore point for a database",
+        "parameters": [
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "description": "Project ref",
+            "schema": {
+              "minLength": 20,
+              "maxLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 20
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["AVAILABLE", "PENDING", "REMOVED"]
+                    }
+                  },
+                  "required": ["name", "status"]
+                }
+              }
+            }
+          }
+        },
+        "tags": ["Database"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "v1-get-restore-point",
+        "x-internal": true,
+        "summary": "Get restore points for project",
+        "parameters": [
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "description": "Project ref",
+            "schema": {
+              "minLength": 20,
+              "maxLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 20,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["AVAILABLE", "PENDING", "REMOVED"]
+                    }
+                  },
+                  "required": ["name", "status"]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": ""
+          },
+          "500": {
+            "description": "Failed to get requested restore points"
+          }
+        },
+        "tags": ["Database"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/projects/{ref}/database/backups/undo": {
+      "post": {
+        "operationId": "v1-undo",
+        "x-internal": true,
+        "summary": "Initiates an undo to a given restore point",
+        "parameters": [
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "description": "Project ref",
+            "schema": {
+              "minLength": 20,
+              "maxLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 20
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "403": {
+            "description": ""
+          }
+        },
+        "tags": ["Database"],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/organizations/{slug}/members": {
       "get": {
         "operationId": "v1-list-organization-members",
@@ -12960,7 +13939,11 @@
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "enum": ["AI_SQL_GENERATOR_OPT_IN"]
+                        "enum": [
+                          "AI_SQL_GENERATOR_OPT_IN",
+                          "AI_DATA_GENERATOR_OPT_IN",
+                          "AI_LOG_GENERATOR_OPT_IN"
+                        ]
                       }
                     },
                     "allowed_release_channels": {
@@ -12991,6 +13974,7 @@
     "/v1/organizations/{slug}/project-claim/{token}": {
       "get": {
         "operationId": "v1-get-organization-project-claim",
+        "x-internal": true,
         "summary": "Gets project details for the specified organization and claim token",
         "parameters": [
           {
@@ -13157,6 +14141,7 @@
       },
       "post": {
         "operationId": "v1-claim-project-for-organization",
+        "x-internal": true,
         "summary": "Claims project for the specified organization",
         "parameters": [
           {
@@ -13294,6 +14279,9 @@
               "FUNCTIONS_DEPLOYED",
               "FUNCTIONS_FAILED"
             ]
+          },
+          "request_review": {
+            "type": "boolean"
           }
         }
       },
@@ -13301,7 +14289,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "name": {
             "type": "string"
@@ -13342,10 +14331,16 @@
             ]
           },
           "created_at": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
           },
           "updated_at": {
-            "type": "string"
+            "type": "string",
+            "format": "date-time"
+          },
+          "review_requested_at": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "required": [
@@ -13516,6 +14511,7 @@
             "type": "string",
             "enum": [
               "pico",
+              "nano",
               "micro",
               "small",
               "medium",
@@ -13869,7 +14865,8 @@
         "type": "object",
         "properties": {
           "api_key": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "id": {
             "type": "string",
@@ -13917,7 +14914,16 @@
             "nullable": true
           }
         },
-        "required": ["api_key", "name"]
+        "required": ["name"]
+      },
+      "LegacyApiKeysResponse": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": ["enabled"]
       },
       "CreateApiKeyBody": {
         "type": "object",
@@ -13985,6 +14991,9 @@
           },
           "git_branch": {
             "type": "string"
+          },
+          "is_default": {
+            "type": "boolean"
           },
           "persistent": {
             "type": "boolean"
@@ -14557,12 +15566,6 @@
               "required": ["postgres_version", "release_channel", "app_version"]
             }
           },
-          "potential_breaking_changes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
           "duration_estimate_hours": {
             "type": "number"
           },
@@ -14572,7 +15575,19 @@
               "type": "string"
             }
           },
-          "extension_dependent_objects": {
+          "objects_to_be_dropped": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unsupported_extensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "user_defined_objects_in_internal_schemas": {
             "type": "array",
             "items": {
               "type": "string"
@@ -14585,10 +15600,11 @@
           "current_app_version_release_channel",
           "latest_app_version",
           "target_upgrade_versions",
-          "potential_breaking_changes",
           "duration_estimate_hours",
           "legacy_auth_custom_roles",
-          "extension_dependent_objects"
+          "objects_to_be_dropped",
+          "unsupported_extensions",
+          "user_defined_objects_in_internal_schemas"
         ]
       },
       "DatabaseUpgradeStatusResponse": {
@@ -14756,21 +15772,6 @@
         },
         "required": ["name", "healthy", "status"]
       },
-      "CreateSigningKeyBody": {
-        "type": "object",
-        "properties": {
-          "algorithm": {
-            "type": "string",
-            "enum": ["EdDSA", "ES256", "RS256", "HS256"]
-          },
-          "status": {
-            "type": "string",
-            "enum": ["in_use", "standby"]
-          }
-        },
-        "required": ["algorithm"],
-        "additionalProperties": false
-      },
       "SigningKeyResponse": {
         "type": "object",
         "properties": {
@@ -14799,6 +15800,124 @@
           }
         },
         "required": ["id", "algorithm", "status", "created_at", "updated_at"],
+        "additionalProperties": false
+      },
+      "CreateSigningKeyBody": {
+        "type": "object",
+        "properties": {
+          "algorithm": {
+            "type": "string",
+            "enum": ["EdDSA", "ES256", "RS256", "HS256"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["in_use", "standby"]
+          },
+          "private_jwk": {
+            "discriminator": {
+              "propertyName": "kty"
+            },
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kty": {
+                    "type": "string",
+                    "enum": ["RSA"]
+                  },
+                  "n": {
+                    "type": "string"
+                  },
+                  "e": {
+                    "type": "string",
+                    "enum": ["AQAB"]
+                  },
+                  "d": {
+                    "type": "string"
+                  },
+                  "p": {
+                    "type": "string"
+                  },
+                  "q": {
+                    "type": "string"
+                  },
+                  "dp": {
+                    "type": "string"
+                  },
+                  "dq": {
+                    "type": "string"
+                  },
+                  "qi": {
+                    "type": "string"
+                  }
+                },
+                "required": ["kty", "n", "e", "d", "p", "q", "dp", "dq", "qi"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kty": {
+                    "type": "string",
+                    "enum": ["EC"]
+                  },
+                  "crv": {
+                    "type": "string",
+                    "enum": ["P-256"]
+                  },
+                  "x": {
+                    "type": "string"
+                  },
+                  "y": {
+                    "type": "string"
+                  },
+                  "d": {
+                    "type": "string"
+                  }
+                },
+                "required": ["kty", "crv", "x", "y", "d"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kty": {
+                    "type": "string",
+                    "enum": ["OKP"]
+                  },
+                  "crv": {
+                    "type": "string",
+                    "enum": ["Ed25519"]
+                  },
+                  "x": {
+                    "type": "string"
+                  },
+                  "d": {
+                    "type": "string"
+                  }
+                },
+                "required": ["kty", "crv", "x", "d"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kty": {
+                    "type": "string",
+                    "enum": ["oct"]
+                  },
+                  "k": {
+                    "type": "string",
+                    "minLength": 16
+                  }
+                },
+                "required": ["kty", "k"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": ["algorithm"],
         "additionalProperties": false
       },
       "SigningKeysResponse": {
@@ -14879,6 +15998,15 @@
                   }
                 },
                 "required": ["enabled"]
+              },
+              "icebergCatalog": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["enabled"]
               }
             },
             "required": ["imageTransformation", "s3Protocol"]
@@ -14908,6 +16036,15 @@
                 "required": ["enabled"]
               },
               "s3Protocol": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["enabled"]
+              },
+              "icebergCatalog": {
                 "type": "object",
                 "properties": {
                   "enabled": {
@@ -15567,6 +16704,18 @@
             "type": "string",
             "nullable": true
           },
+          "hook_before_user_created_enabled": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "hook_before_user_created_uri": {
+            "type": "string",
+            "nullable": true
+          },
+          "hook_before_user_created_secrets": {
+            "type": "string",
+            "nullable": true
+          },
           "jwt_exp": {
             "type": "integer",
             "nullable": true
@@ -15875,6 +17024,7 @@
           },
           "smtp_admin_email": {
             "type": "string",
+            "format": "email",
             "nullable": true
           },
           "smtp_host": {
@@ -15996,6 +17146,9 @@
           "hook_send_email_enabled",
           "hook_send_email_uri",
           "hook_send_email_secrets",
+          "hook_before_user_created_enabled",
+          "hook_before_user_created_uri",
+          "hook_before_user_created_secrets",
           "jwt_exp",
           "mailer_allow_unverified_email_sign_ins",
           "mailer_autoconfirm",
@@ -16101,6 +17254,7 @@
           },
           "smtp_admin_email": {
             "type": "string",
+            "format": "email",
             "nullable": true
           },
           "smtp_host": {
@@ -16496,6 +17650,18 @@
             "nullable": true
           },
           "hook_send_email_secrets": {
+            "type": "string",
+            "nullable": true
+          },
+          "hook_before_user_created_enabled": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "hook_before_user_created_uri": {
+            "type": "string",
+            "nullable": true
+          },
+          "hook_before_user_created_secrets": {
             "type": "string",
             "nullable": true
           },
@@ -17413,6 +18579,19 @@
         },
         "required": ["query"]
       },
+      "V1UpsertMigrationBody": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": ["query"]
+      },
       "V1RunQueryBody": {
         "type": "object",
         "properties": {
@@ -17496,6 +18675,9 @@
           },
           "import_map_path": {
             "type": "string"
+          },
+          "ezbr_sha256": {
+            "type": "string"
           }
         },
         "required": ["id", "slug", "name", "status", "version", "created_at", "updated_at"]
@@ -17556,6 +18738,9 @@
             },
             "import_map_path": {
               "type": "string"
+            },
+            "ezbr_sha256": {
+              "type": "string"
             }
           },
           "required": ["id", "slug", "name", "status", "version"]
@@ -17603,6 +18788,9 @@
                   "type": "string"
                 },
                 "import_map_path": {
+                  "type": "string"
+                },
+                "ezbr_sha256": {
                   "type": "string"
                 }
               },
@@ -17687,6 +18875,9 @@
           },
           "import_map_path": {
             "type": "string"
+          },
+          "ezbr_sha256": {
+            "type": "string"
           }
         },
         "required": ["id", "slug", "name", "status", "version"]
@@ -17728,6 +18919,9 @@
             "type": "string"
           },
           "import_map_path": {
+            "type": "string"
+          },
+          "ezbr_sha256": {
             "type": "string"
           }
         },
@@ -18451,6 +19645,39 @@
         },
         "required": ["recovery_time_target_unix"]
       },
+      "V1RestorePointPostBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 20
+          }
+        },
+        "required": ["name"]
+      },
+      "V1RestorePointResponse": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["AVAILABLE", "PENDING", "REMOVED"]
+          }
+        },
+        "required": ["name", "status"]
+      },
+      "V1UndoBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 20
+          }
+        },
+        "required": ["name"]
+      },
       "V1OrganizationMemberResponse": {
         "type": "object",
         "properties": {
@@ -18489,7 +19716,11 @@
             "type": "array",
             "items": {
               "type": "string",
-              "enum": ["AI_SQL_GENERATOR_OPT_IN"]
+              "enum": [
+                "AI_SQL_GENERATOR_OPT_IN",
+                "AI_DATA_GENERATOR_OPT_IN",
+                "AI_LOG_GENERATOR_OPT_IN"
+              ]
             }
           },
           "allowed_release_channels": {
